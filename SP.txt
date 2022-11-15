@@ -1,0 +1,140 @@
+delimiter &&
+CREATE PROCEDURE FlightSearch (in pointA varchar(10),in pointB varchar(10),in dateofflight date)
+begin
+select f.flight_call ,acm.name as Flight_Name,s.origin_iata_airport_code as From_,s.dest_iata_airport_code as To_,s.departure_time_gmt as Dep_Time,
+s.arrival_time_gmt as Arr_Time,fp.price_usd as Price,tc.name as Class from schedule s
+join flight f
+on s.schedule_id = f.schedule_id
+join flightseatprice fp
+on f.flight_call = fp.flight_call
+join aircraft ac
+on fp.aircraft_id = ac.aircraft_id
+join aircraftnamufacturer acm
+on acm.aircraft_manufacturer_id = ac.aircraft_manufacturer_id
+join aircraftseat acs
+on acs.aircraft_id = ac.aircraft_id
+join travelclass tc
+on tc.travel_class_id = acs.travel_class_id
+where s.origin_iata_airport_code = pointA and s.dest_iata_airport_code = pointB and date(s.departure_time_gmt) = '2022-09-10';
+end &&
+delimiter ;
+
+-- call FlightSearch('CCU','BHM','2022-09-10')
+
+
+delimiter &&
+CREATE PROCEDURE CheckFlightStatus (in fid varchar(10))
+select fs.name as flight_status from flight f
+join flight_status fs
+on f.flight_status_id = fs.flight_status_id
+where flight_call = fid;
+end &&
+delimiter ;
+
+select * from flight;
+
+call CheckFlightStatus(3762)
+
+delimiter //
+create procedure FlightBooking(in first_name varchar(45), in middle_name varchar(45),in last_name varchar(45),in phone varchar(45),
+in email varchar(45),in passport varchar(45),in c_code varchar(10),in flight_name_ varchar(45),in flight_call_ int)
+begin
+    DECLARE client_prev_id Int;
+    DECLARE seat_id_ Int;
+    DECLARE aircraft_id_ Int;
+
+    set client_prev_id = (select max(client_id) from client)+1;
+
+    set aircraft_id_= (select min(aircraft_id) from aircraftnamufacturer acm
+    inner join aircraft a
+    on acm.aircraft_manufacturer_id = a.aircraft_manufacturer_id
+    where acm.name = flight_name_);
+
+    set seat_id_ = (select seat_id from aircraftseat where aircraft_id=aircraft_id_);
+
+    insert into client values(client_prev_id,first_name,middle_name,last_name,phone,email,passport,c_code);
+    insert into booking(client_id,flight_call,aircraft_id,seat_id) values(client_prev_id,flight_call_,aircraft_id_,seat_id_);
+
+end //
+delimiter ;
+
+delimiter //
+create procedure FlightBooking(in first_name varchar(45), in middle_name varchar(45),in last_name varchar(45),in phone varchar(45),
+in email varchar(45),in passport varchar(45),in c_code varchar(10),in flight_name_ varchar(45),in flight_call_ int)
+begin
+    DECLARE client_prev_id Int;
+    DECLARE seat_id_ Int;
+    DECLARE aircraft_id_ Int;
+
+    set client_prev_id = (select max(client_id) from client)+1;
+
+    set aircraft_id_= (select min(aircraft_id) from aircraftnamufacturer acm
+    inner join aircraft a
+    on acm.aircraft_manufacturer_id = a.aircraft_manufacturer_id
+    where acm.name = flight_name_);
+
+    set seat_id_ = (select seat_id from aircraftseat where aircraft_id=aircraft_id_);
+
+    insert into client values(client_prev_id,first_name,middle_name,last_name,phone,email,passport,c_code);
+    insert into booking(client_id,flight_call,aircraft_id,seat_id) values(client_prev_id,flight_call_,aircraft_id_,seat_id_);
+    call TicketGenerater(client_prev_id,flight_call_);
+end //
+delimiter ;
+
+
+delimiter //
+create procedure TicketGenerater (in client_prev_id int, in flight_call_ int)
+select concat(c.first_name,' ',c.last_name) as Name,sc.origin_iata_airport_code as From_,sc.dest_iata_airport_code as To_,
+sc.departure_time_gmt as Dept_Time_,sc.arrival_time_gmt as Arr_Time,acm.name as Flight_name,tc.name as class,b.Bstatus from aircraftnamufacturer acm
+join aircraft ac
+on acm.aircraft_manufacturer_id = ac.aircraft_manufacturer_id
+join booking b
+on ac.aircraft_id = b.aircraft_id
+join client c
+on b.client_id = c.client_id
+join flight f
+on b.flight_call = f.flight_call
+join schedule sc
+on f.schedule_id = sc.schedule_id
+join aircraftseat acs
+on acs.seat_id = b.seat_id
+join travelclass tc
+on tc.travel_class_id = acs.travel_class_id
+where b.client_id =  client_prev_id and f.flight_call = flight_call_  ;
+end //
+delimiter ;
+
+
+delimiter //
+create procedure FlightBooking1(in flight_call_ int)
+begin
+    DECLARE client_prev_id Int;
+
+    set client_prev_id = (select max(client_id) from client);
+
+    call TicketGenerater(client_prev_id,flight_call_);
+end //
+delimiter ;
+
+delimiter &&
+CREATE PROCEDURE checkbooking (in cid varchar(10))
+select concat(c.first_name,' ',c.last_name) as Name,sc.origin_iata_airport_code,sc.dest_iata_airport_code,
+sc.departure_time_gmt,sc.arrival_time_gmt,acm.name as Flight_name,tc.name as class from aircraftnamufacturer acm
+join aircraft ac
+on acm.aircraft_manufacturer_id = ac.aircraft_manufacturer_id
+join booking b
+on ac.aircraft_id = b.aircraft_id
+join client c
+on b.client_id = c.client_id
+join flight f
+on b.flight_call = f.flight_call
+join schedule sc
+on f.schedule_id = sc.schedule_id
+join aircraftseat acs
+on acs.seat_id = b.seat_id
+join travelclass tc
+on tc.travel_class_id = acs.travel_class_id
+where b.client_id = cid;
+end &&
+delimiter ;
+

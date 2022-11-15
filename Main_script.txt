@@ -1,0 +1,161 @@
+import pandas as pd
+from sqlalchemy import create_engine
+import mysql.connector
+from sqlalchemy.exc import ResourceClosedError,IntegrityError
+
+host="localhost",
+user="root",
+password="root",
+database="airline"
+port=3306
+
+engine = create_engine('mysql+pymysql://root:root@localhost:3306/airline')
+conn = engine.connect()
+
+mydb = mysql.connector.connect(host="localhost",user="root",password="root",database="airline")
+mycursor = mydb.cursor()
+
+def search_flights():
+    from_ = input('From :')
+    to_ = input('To : ')
+    date_ = input('Date : ')
+    exists = False
+    df = pd.read_sql_query(f'call FlightSearch("{from_}","{to_}","{date_}")',engine)
+    if df.empty:
+        print('There is no Fights ')
+    else:
+        display(df)
+        exists = True
+        return {'df':df,'exists':exists}
+
+def book_flights():
+    print('Login Required. Press 3')
+
+def flight_booking(flight_name,flight_code):
+    fname = input('Enter First Name: ')
+    mname = input('Enter middle Name: ')
+    lname = input('Enter last Name: ')
+    mob = input('Enter phone number: ')
+    mail = input('Enter email number: ')
+    passport = input('Enter passport:')
+    country = input('Enter country code: ')
+#     flight_name = input('Enter flight name: ')
+#     flight_code = int(input('Enter flight code: '))
+    try:
+        mycursor.callproc("flightbooking", [fname,mname,lname,mob,mail,passport,country,flight_name,flight_code])
+        mydb.commit()
+        value = pd.read_sql_query(f'call FlightBooking1({flight_code})',engine)
+        display(value)
+    except mysql.connector.IntegrityError:
+        print("Don't Insert Duplicate Value.")
+
+    
+    
+    
+def login():
+    flag = True
+    print('Login')
+    username = input('Enter email : ')
+    password = input('Enter Password :')
+    print('\n')
+    df = pd.read_sql_query(f'select * from register where email="{username}" and password="{password}"',engine)
+    if df.empty:
+        print("There is no username exists. Please Enter Valid Username and Password.")
+    else:
+        while flag:
+            print('\n')
+            print('Press 1: Book Flight')
+            print('Press 2: View Bookings')
+            print('Press 3: Check Flight Status')
+            print('Press 4: Cancel Booking')
+            print('Press 5: LOGOUT')
+            choose = int(input('Please Enter Number.... : '))
+
+            if choose == 1:
+                value = search_flights()
+                if value['exists']:
+                    row = int(input('Please Enter the Row Number : '))
+                    flight_name = str(value['df'].iloc[row][1])
+                    flight_code = int(value['df'].iloc[row][0])
+                    flight_booking(flight_name,flight_code)
+            elif choose == 2:
+                check_booking()
+            elif choose == 3:
+                CheckFlightStatus()
+            elif choose == 4:
+                pass
+            elif choose == 5:
+                flag = False
+            else:
+                print('Please Enter valid number which are mentioned as options.')
+            
+
+def register():
+    print('\n')
+    print('Register')
+    flag = True
+    while flag:
+        name = input('Enter Your Name :')
+        email = input('Enter Your Email : ')
+        password = input('Enter Password :')
+        confirm = input('Enter Password Again :')
+        if password == confirm:
+            try:
+                pd.read_sql_query(f'insert into register values("{name}","{email}","{password}")',engine)
+                flag = False
+            except ResourceClosedError:
+                login()
+                flag = False
+            except IntegrityError:
+                print('Username already Exits. Try with another username and email.')
+                continue
+        else:
+            print("Please enter Password Correctly")
+
+def CheckFlightStatus():
+    number = int(input('Enter Flight No. : '))
+    df = pd.read_sql_query(f'call CheckFlightStatus("{number}")',engine)
+    if df.empty:
+        print("There is no flight on this number.")
+    else:
+        display(df)
+
+def check_booking():
+    pid = int(input("Enter your ID : "))
+    df = pd.read_sql_query(f'call checkbooking({pid});',engine)
+    if df.empty:
+        print('There is no result found.')
+    else:
+        display(df)
+
+def main():
+    flag = True
+    while flag:
+        print('Flight Booking systems')
+        print('\n')
+        print('Press 1 : Search Flights')
+        print('Press 2 : Book Flights')
+        print('Press 3 : Login')
+        print('Press 4 : Register')
+        print('Press 0 : Exit')
+        
+        choose = int(input('Press Key'))
+        
+        if choose == 1:
+            search_flights()
+            print('\n')
+        elif choose == 2:
+            book_flights()
+            print('\n')
+        elif choose == 3:
+            login()
+            print('\n')
+        elif choose == 4:
+            register()
+            print('\n')
+        elif choose == 0:
+            print('Thank You')
+            flag = False
+            break
+
+main()
